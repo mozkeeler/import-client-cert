@@ -1,5 +1,7 @@
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 #include "nss.h"
 #include "p12.h"
@@ -37,6 +39,21 @@ SECItem *nicknameCollision(SECItem *oldNickname, PRBool *cancel, void *) {
   return nullptr;
 }
 
+std::string promptPKCS12Password() {
+  std::cout << "PKCS12 password: ";
+  std::string password;
+  std::cin >> password;
+  return password;
+}
+
+std::vector<uint8_t> passwordToPKCS12String(std::string password) {
+  std::vector<uint8_t> wide(2 * (password.size() + 1), 0);
+  for (size_t i = 0; i < password.size(); i++) {
+    wide[(2 * i) + 1] = password[i];
+  }
+  return wide;
+}
+
 int main(int argc, char *argv[]) {
   if (argc != 3) {
     std::cerr << "Usage: " << argv[0]
@@ -61,19 +78,19 @@ int main(int argc, char *argv[]) {
 
   PK11SlotInfo *slot = PK11_GetInternalKeySlot();
   if (PK11_NeedUserInit(slot)) {
-    // This just sets an empty password on the NSS db, like 99% of Firefox
-    // users.
+    // This sets an empty password on the NSS db, like 99% of Firefox users.
     if (PK11_InitPin(slot, nullptr, nullptr) != SECSuccess) {
       printPRError("PK11_InitPin");
       return 1;
     }
   }
 
-  uint8_t nulls[] = {0, 0};
-  SECItem nullPassword = {siBuffer, nulls, sizeof(nulls)};
-  // SECItem nullPassword = { siBuffer, nullptr, 0 };
+  std::vector<uint8_t> password(passwordToPKCS12String(promptPKCS12Password()));
+  // uint8_t nulls[] = {0, 0};
+  // SECItem nullPassword = {siBuffer, nulls, sizeof(nulls)};
+  SECItem passwordItem = {siBuffer, password.data(), password.size()};
   SEC_PKCS12DecoderContext *ctx(
-      SEC_PKCS12DecoderStart(&nullPassword, slot, nullptr, nullptr, nullptr,
+      SEC_PKCS12DecoderStart(&passwordItem, slot, nullptr, nullptr, nullptr,
                              nullptr, nullptr, nullptr));
   if (!ctx) {
     printPRError("SEC_PKCS12DecoderStart");

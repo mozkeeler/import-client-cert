@@ -1,5 +1,5 @@
 CXX=clang++
-CFLAGS=-I/usr/include/nspr4 -I/usr/include/nss3 -I/usr/local/opt/nss/include/nss -I/usr/local/opt/nspr/include/nspr -Wall -g
+CFLAGS=-I/usr/include/nspr4 -I/usr/include/nss3 -I/usr/local/opt/nss/include/nss -I/usr/local/opt/nspr/include/nspr -Wall -g --std=c++11
 LDFLAGS=-lnss3 -lnspr4 -lsmime3 -L/usr/local/opt/nss/lib
 
 default: import-client-cert

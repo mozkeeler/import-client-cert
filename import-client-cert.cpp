@@ -60,7 +60,6 @@ SECItem *nicknameCollision(SECItem *oldNickname, PRBool *cancel, void *) {
       SECItem *nicknameItem =
           SECITEM_AllocItem(nullptr, nullptr, strlen(nickname) + 1);
       memcpy(nicknameItem->data, nickname, nicknameItem->len);
-      nicknameItem->data[nicknameItem->len - 1] = 0;
       return nicknameItem;
     }
   }

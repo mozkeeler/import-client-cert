@@ -8,4 +8,4 @@ import-client-cert: import-client-cert.cpp Makefile
 	$(CXX) -o import-client-cert import-client-cert.cpp $(CFLAGS) $(LDFLAGS)
 
 clean:
-	rm -f import-client-cert cert9.db key4.db
+	rm -f import-client-cert cert9.db key4.db pkcs11.txt

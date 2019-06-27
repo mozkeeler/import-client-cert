@@ -93,8 +93,6 @@ int tryToImportCert(const char *pathToCert) {
   }
 
   std::vector<uint8_t> password(passwordToPKCS12String(promptPKCS12Password()));
-  // uint8_t nulls[] = {0, 0};
-  // SECItem nullPassword = {siBuffer, nulls, sizeof(nulls)};
   SECItem passwordItem = {siBuffer, password.data(),
                           static_cast<unsigned int>(password.size())};
   UniqueSEC_PKCS12DecoderContext ctx(

@@ -88,7 +88,8 @@ int main(int argc, char *argv[]) {
   std::vector<uint8_t> password(passwordToPKCS12String(promptPKCS12Password()));
   // uint8_t nulls[] = {0, 0};
   // SECItem nullPassword = {siBuffer, nulls, sizeof(nulls)};
-  SECItem passwordItem = {siBuffer, password.data(), password.size()};
+  SECItem passwordItem = {siBuffer, password.data(),
+                          static_cast<unsigned int>(password.size())};
   SEC_PKCS12DecoderContext *ctx(
       SEC_PKCS12DecoderStart(&passwordItem, slot, nullptr, nullptr, nullptr,
                              nullptr, nullptr, nullptr));

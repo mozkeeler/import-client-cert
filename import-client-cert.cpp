@@ -10,6 +10,7 @@
 #include "pk11pub.h"
 #include "prerror.h"
 
+// Helper to turn some NSS types into RAII/unique_ptr types.
 struct UniqueDelete {
   void operator()(CERTCertificate *cert) { CERT_DestroyCertificate(cert); }
   void operator()(PK11SlotInfo *slot) { PK11_FreeSlot(slot); }
@@ -35,6 +36,9 @@ UNIQUE(SEC_PKCS12DecoderContext);
 
 #undef UNIQUE
 
+// Password prompt handler for situations where the NSS certificate/key database
+// has a "master password" set. The caller takes ownership of the allocated
+// memory.
 char *passwordPrompt(PK11SlotInfo *slot, PRBool retry, void *arg) {
   std::cout << "NSS cert/key DB password: ";
   std::string password;
@@ -47,6 +51,10 @@ void printPRError(const char *prefix) {
             << "\n";
 }
 
+// When importing new certificates, they may either not have a nickname set or
+// the nickname may collide with an existing certificate. This function attempts
+// to find a unique nickname and returns it if it can. This function makes no
+// attempt to find a particularly useful nickname, however.
 SECItem *nicknameCollision(SECItem *oldNickname, PRBool *cancel, void *) {
   *cancel = true;
 
@@ -55,6 +63,7 @@ SECItem *nicknameCollision(SECItem *oldNickname, PRBool *cancel, void *) {
     snprintf(nickname, sizeof(nickname), "imported cert #%lu", i);
     UniqueCERTCertificate cert(
         CERT_FindCertByNickname(CERT_GetDefaultCertDB(), nickname));
+    // If there is no existing certificate using this nickname, we can use it.
     if (!cert) {
       *cancel = false;
       SECItem *nicknameItem =
@@ -67,6 +76,8 @@ SECItem *nicknameCollision(SECItem *oldNickname, PRBool *cancel, void *) {
   return nullptr;
 }
 
+// Helper to read the password that encrypted the PKCS#12 file (this really only
+// handles ASCII).
 std::string promptPKCS12Password() {
   std::cout << "PKCS12 password: ";
   std::string password;
@@ -74,6 +85,8 @@ std::string promptPKCS12Password() {
   return password;
 }
 
+// The password-based encryption in use requires a big endian unicode string for
+// some reason.
 std::vector<uint8_t> passwordToPKCS12String(std::string password) {
   std::vector<uint8_t> wide(2 * (password.size() + 1), 0);
   for (size_t i = 0; i < password.size(); i++) {
@@ -111,10 +124,10 @@ int tryToImportCert(const char *pathToCert) {
   }
   std::streampos size = pkcs12File.tellg();
   pkcs12File.seekg(0, std::ios::beg);
-  uint8_t *contents = new uint8_t[size];
-  pkcs12File.read(reinterpret_cast<char *>(contents), size);
+  std::unique_ptr<uint8_t[]> contents(new uint8_t[size]);
+  pkcs12File.read(reinterpret_cast<char *>(contents.get()), size);
   pkcs12File.close();
-  SECStatus srv = SEC_PKCS12DecoderUpdate(ctx.get(), contents, size);
+  SECStatus srv = SEC_PKCS12DecoderUpdate(ctx.get(), contents.get(), size);
   if (srv != SECSuccess) {
     printPRError("SEC_PKCS12DecoderUpdate");
     return 1;

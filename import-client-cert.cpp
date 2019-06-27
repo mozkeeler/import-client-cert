@@ -10,30 +10,20 @@
 #include "pk11pub.h"
 #include "prerror.h"
 
-// Helper to turn some NSS types into RAII/unique_ptr types.
-struct UniqueDelete {
-  void operator()(CERTCertificate *cert) { CERT_DestroyCertificate(cert); }
-  void operator()(PK11SlotInfo *slot) { PK11_FreeSlot(slot); }
-  void operator()(SEC_PKCS12DecoderContext *dcx) {
-    SEC_PKCS12DecoderFinish(dcx);
-  }
-};
-
-template <class T> struct UniqueMaybeDelete {
+// Helper goop to turn some NSS types into RAII/unique_ptr types.
+template <class T, void (*d)(T *)> struct UniqueMaybeDelete {
   void operator()(T *ptr) {
     if (ptr) {
-      UniqueDelete del;
-      del(ptr);
+      d(ptr);
     }
   }
 };
 
-#define UNIQUE(x) typedef std::unique_ptr<x, UniqueMaybeDelete<x>> Unique##x
-
-UNIQUE(CERTCertificate);
-UNIQUE(PK11SlotInfo);
-UNIQUE(SEC_PKCS12DecoderContext);
-
+#define UNIQUE(type, deleter)                                                  \
+  typedef std::unique_ptr<type, UniqueMaybeDelete<type, deleter>> Unique##type;
+UNIQUE(CERTCertificate, CERT_DestroyCertificate);
+UNIQUE(PK11SlotInfo, PK11_FreeSlot);
+UNIQUE(SEC_PKCS12DecoderContext, SEC_PKCS12DecoderFinish);
 #undef UNIQUE
 
 // Password prompt handler for situations where the NSS certificate/key database
